@@ -321,7 +321,7 @@ class Report:
         summary = ""
         summary += f"Reason: {self.reason}\n"
         summary += f"Subreason: {self.sub_reason}\n"
-        summary += f"Additional Context: {self.additional_context}\n"
+        summary += f"Additional Context: {self.user_context if self.additional_context else self.additional_context}\n"
         summary += f"\n{len(self.flagged_messages)} flagged messages:\n"
         for i, message in enumerate(self.flagged_messages):
             summary += f"```{message.author.name}: {message.content}```"
