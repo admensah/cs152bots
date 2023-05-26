@@ -50,6 +50,7 @@ class ModBot(discord.Client):
         self.reports_to_review = [] # Priority queue of (user IDs, index)  state of their filed report
         self.report_counter = 0 # Count of filed reports
         self.reports_in_review = {} # Map from bot_message id to report
+        self.false_reporters = [] # List of reporters 
 
     async def on_ready(self):
         print(f'{self.user.name} has connected to Discord! It is these guilds:')
@@ -97,13 +98,13 @@ class ModBot(discord.Client):
         if reaction.message.guild: # Moderator flow
             if reaction.message.id in self.reports_in_review:
                 report = self.reports_in_review[reaction.message.id]
-                await report.handle_reaction(reaction)
+                await report.handle_reaction(reaction, self.false_reporters)
 
 
         elif user.id in self.reports: # User flow
             report = self.reports[user.id]
             if reaction.message == report.message:
-                await self.reports[user.id].handle_reaction(reaction)
+                await self.reports[user.id].handle_reaction(reaction, self.false_reporters)
                 
                 bot_id = self.user.id
                 fake_message = reaction.message
@@ -153,7 +154,6 @@ class ModBot(discord.Client):
                     self.reports[author_id].state == State.CHOOSE_BLOCK):
                 await bot_message.add_reaction("✅")
                 await bot_message.add_reaction("❌")
-            print(self.reports[author_id].state)
 
         # If the report is filed, save it, cache it in a priority queue, and alert #mod channel for review.
         if self.reports[author_id].report_filed():

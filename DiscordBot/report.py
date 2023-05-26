@@ -58,6 +58,7 @@ class Report:
         self.flagged_messages = []
         self.user_context = None # user inputted context
         self.severity = None
+        self.reporter = None
     
     async def handle_message(self, message):
         '''
@@ -76,6 +77,7 @@ class Report:
             reply += "Please copy paste the link to the message you want to report.\n"
             reply += "You can obtain this link by right-clicking the message and clicking `Copy Message Link`."
             self.state = State.AWAITING_MESSAGE
+            self.reporter = message.author
             return [reply]
         
         if self.state == State.AWAITING_MESSAGE:
@@ -187,7 +189,8 @@ class Report:
                 return ["You selected " + self.severity + ". Thank you for reviewing."]
 
 
-    async def handle_reaction(self, reaction):
+
+    async def handle_reaction(self, reaction, false_reporters):
         self.reaction_mode = False
         if self.state == State.AWAITING_REASON:
             self.reason = self.REASONS[self.NUM_TO_IND[reaction.emoji] - 1] 
@@ -210,6 +213,25 @@ class Report:
                         offendingUsers.append(offendingUser)
                         offendingUserNames.append(offendingUser.name)
                 reply = "No action has been taken against " + " ,".join(offendingUserNames) + "\n\n"
+                
+                await self.message.channel.send("Is this a false report? (yes/no)")             
+
+                def check(m):
+                    return m.content in ['yes', 'no', 'Yes', 'No']
+                
+                response = await self.client.wait_for('message', check=check, timeout=60.0) 
+                
+                while not check(response):
+                    await self.message.channel.send("Is this a false report? Type (yes/no)")
+                    response = await self.client.wait_for('message', check=check, timeout=60.0) 
+
+                if response.content in ['yes', 'Yes']:
+                    false_reporters.append(self.reporter)
+                    if false_reporters.count(self.reporter) > 2:
+                        await self.reporter.send("Your account is kicked for 3 or more repeated inaccurate reports.")
+                    else:
+                        await self.reporter.send(f"Ensure future reports are accurate to avoid further action against your account. This is warning {false_reporters.count(self.reporter)} of 2.")
+
                 reply += "Use the `peek` command to look at the most urgent report.\n"
                 reply += "Use the `count` command to see how many reports are in the review queue.\n"
                 reply += "Use the `review` command to review the most urgent report.\n"
@@ -275,8 +297,7 @@ class Report:
                 reply += "Use the `review` command to review the most urgent report.\n"
                 await self.message.channel.send(reply)
         return
-
-        
+     
     def get_authors(self):
         authors = [msg.author.name for msg in self.flagged_messages]
         unique_authors = list(set(authors))
