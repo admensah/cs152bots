@@ -103,12 +103,8 @@ class ModBot(discord.Client):
         elif user.id in self.reports: # User flow
             report = self.reports[user.id]
             if reaction.message == report.message:
-                #print("reaction detected!")
                 await self.reports[user.id].handle_reaction(reaction)
                 
-                # "fake" a message from the user (this is a hack to use handle_dm)
-                # (trust me.  this is so hacky and stupid but it works!!!. im smart #womeinSTEM)
-                # <3
                 bot_id = self.user.id
                 fake_message = reaction.message
                 fake_message.author.id = user.id
@@ -231,9 +227,9 @@ class ModBot(discord.Client):
 
                 # Review top item
                 reply = f"1 of {len(self.reports_to_review)} reports:\n"
-                _, _, info = self.reports_to_review[0]
+                _, _, info = self.reports_to_review.pop(0)
                 author_id, index = info
-                report = self.filed_reports[author_id].pop(index)
+                report = self.filed_reports[author_id][index]
                 reply += report.summary()
                 await message.channel.send(reply)
 

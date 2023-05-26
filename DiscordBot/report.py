@@ -91,7 +91,10 @@ class Report:
                 return ["It seems this channel was deleted or never existed. Please try again or say `cancel` to cancel."]
             try:
                 message = await channel.fetch_message(int(m.group(3)))
-                self.flagged_messages.append(message)
+                if message not in self.flagged_messages: 
+                    self.flagged_messages.append(message)
+                else:
+                    return ["It seems this message has already been added. Please try again or say `cancel` to cancel."]
             except discord.errors.NotFound:
                 return ["It seems this message was deleted or never existed. Please try again or say `cancel` to cancel."]
 
@@ -198,7 +201,6 @@ class Report:
             self.choose_block = self.EMOJI_YN[reaction.emoji]
         if self.state == State.AWAITING_REVIEW:
             self.severity = self.NUM_TO_IND[reaction.emoji]
-            print(f"Severity level is {self.severity}")
             if self.severity == 1:
                 offendingUsers = []
                 offendingUserNames = []
@@ -207,7 +209,10 @@ class Report:
                     if offendingUser not in offendingUsers:
                         offendingUsers.append(offendingUser)
                         offendingUserNames.append(offendingUser.name)
-                reply = "No action has been taken against " " ,".join(offendingUserNames) + "\n"
+                reply = "No action has been taken against " + " ,".join(offendingUserNames) + "\n\n"
+                reply += "Use the `peek` command to look at the most urgent report.\n"
+                reply += "Use the `count` command to see how many reports are in the review queue.\n"
+                reply += "Use the `review` command to review the most urgent report.\n"
                 await self.message.channel.send(reply)
             if self.severity == 2:
                 # Warn offending user
@@ -220,29 +225,43 @@ class Report:
                         offendingUserNames.append(offendingUser.name)
                 for user in offendingUsers:
                     await user.send("You have been reported for violating the server rules. Please be respectful and follow the guidelines.")
-                reply = "The following users have been warned: " + " ,".join(offendingUserNames) + "\n"
+                reply = "The following users have been warned: " + " ,".join(offendingUserNames) + "\n\n"
+                reply +=  "Use the `peek` command to look at the most urgent report.\n"
+                reply += "Use the `count` command to see how many reports are in the review queue.\n"
+                reply += "Use the `review` command to review the most urgent report.\n"
                 await self.message.channel.send(reply)
             if self.severity == 3:
                 # Delete message and warn offending user
                 offendingUsers = []
                 offendingUserNames = []
                 for message in self.flagged_messages:
-                    await message.delete()
+                    try:
+                        await message.delete()
+                    except discord.NotFound:
+                        response = "The message does not exist or has already been deleted.\n"
+                        await self.message.channel.send(response)
                     offendingUser = message.author
                     if offendingUser not in offendingUsers:
                         offendingUsers.append(offendingUser)
                         offendingUserNames.append(offendingUser.name)
                 for user in offendingUsers:
                     await user.send("You have been reported for violating the server rules. Please be respectful and follow the guidelines.")
-                reply = "The following user(s) have been warned: " + " ,".join(offendingUserNames) + "\n"
-                reply = "The message(s) has been deleted."
+                reply = "The following user(s) have been warned: " + " ,".join(offendingUserNames) + "\n\n"
+                reply += "The message(s) has been deleted.\n"
+                reply +=  "Use the `peek` command to look at the most urgent report.\n"
+                reply += "Use the `count` command to see how many reports are in the review queue.\n"
+                reply += "Use the `review` command to review the most urgent report.\n"
                 await self.message.channel.send(reply)
             if self.severity == 4:
                 # Delete message and kick offending user
                 offendingUsers = []
                 offendingUserNames = []
                 for message in self.flagged_messages:
-                    await message.delete()
+                    try:
+                        await message.delete()
+                    except discord.NotFound:
+                        response = "The message does not exist or has already been deleted.\n"
+                        await self.message.channel.send(response)
                     offendingUser = message.author
                     if offendingUser not in offendingUsers:
                         offendingUsers.append(offendingUser)
@@ -250,7 +269,10 @@ class Report:
                 for user in offendingUsers:
                     await user.send("You have been kicked for violating the server rules. Please be respectful and follow the guidelines.")
                 reply = "The following users have been kicked: " +  " ,".join(offendingUserNames) + "\n"
-                reply = "The messages have been deleted."
+                reply += "The message(s) has been deleted.\n"
+                reply +=  "Use the `peek` command to look at the most urgent report.\n"
+                reply += "Use the `count` command to see how many reports are in the review queue.\n"
+                reply += "Use the `review` command to review the most urgent report.\n"
                 await self.message.channel.send(reply)
         return
 
@@ -270,7 +292,7 @@ class Report:
 
     # Lower number == Higher priority
     def priority(self):
-        if self.reason == "Imminent Danger" or self.sub_reason in ["Doxxing", "Extortion", "Other"]:
+        if self.reason == "Imminent Danger" or self.sub_reason in ["Doxxing", "Extortion", "Other", "Cyberstalking", "Threats", "Swatting"]:
             return 1
         return 2
 
@@ -279,6 +301,7 @@ class Report:
         summary = ""
         summary += f"Reason: {self.reason}\n"
         summary += f"Subreason: {self.sub_reason}\n"
+        summary += f"Additional Context: {self.additional_context}\n"
         summary += f"\n{len(self.flagged_messages)} flagged messages:\n"
         for i, message in enumerate(self.flagged_messages):
             summary += f"```{message.author.name}: {message.content}```"
