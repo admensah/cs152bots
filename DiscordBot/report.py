@@ -231,7 +231,6 @@ class Report:
                         await self.reporter.send("Your account is kicked for 3 or more repeated inaccurate reports.")
                     else:
                         await self.reporter.send(f"Ensure future reports are accurate to avoid further action against your account. This is warning {false_reporters.count(self.reporter)} of 2.")
-
                 reply += "Use the `peek` command to look at the most urgent report.\n"
                 reply += "Use the `count` command to see how many reports are in the review queue.\n"
                 reply += "Use the `review` command to review the most urgent report.\n"
