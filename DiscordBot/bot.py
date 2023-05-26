@@ -174,7 +174,8 @@ class ModBot(discord.Client):
                     if channel.name == f'group-{self.group_num}-mod':
                         mod_channel = channel
             report_summary = self.reports[author_id].summary()
-            reply = f"New report added to the queue:\n{report_summary}"
+            reply = "---\n"
+            reply += f"New report added to the queue:\n{report_summary}"
             reply +=  "Use the `peek` command to look at the most urgent report.\n"
             reply += "Use the `count` command to see how many reports are in the review queue.\n"
             reply += "Use the `review` command to review the most urgent report.\n"
@@ -189,7 +190,7 @@ class ModBot(discord.Client):
         if message.channel.name == f'group-{self.group_num}':
             # Forward the message to the mod channel
             mod_channel = self.mod_channels[message.guild.id]
-            await mod_channel.send(f'Forwarded message:\n{message.author.name}: "{message.content}"')
+            await mod_channel.send(f'---\nForwarded message:\n{message.author.name}: "{message.content}"')
             scores = self.eval_text(message.content)
             await mod_channel.send(self.code_format(scores))
             return 
@@ -199,6 +200,7 @@ class ModBot(discord.Client):
             if message.content == Moderator.HELP_KEYWORD:
                 reply =  "Use the `peek` command to look at the most urgent report.\n"
                 reply += "Use the `count` command to see how many reports are in the review queue.\n"
+                reply += "Use the `review` command to review the most urgent report.\n"
                 await message.channel.send(reply)
                 return
 
