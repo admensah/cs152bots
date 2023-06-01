@@ -9,6 +9,7 @@ import requests
 from report import Report, State
 import pdb
 import heapq
+import openai
 
 # Set up logging to the console
 logger = logging.getLogger('discord')
@@ -256,16 +257,28 @@ class ModBot(discord.Client):
         TODO: Once you know how you want to evaluate messages in your channel, 
         insert your code here! This will primarily be used in Milestone 3. 
         '''
-        return message
+        conversation = [
+        {"role": "system", "content": "You are a content moderation system. Classify each input as either Doxxing, Extortion, Threats, Sexual Harassment, Hate Speech, Bullying, or . Then assign a severity level to it between 1 and 4, 4 being the most severe. The message you return should be in the format 'Type (Severity)' unless its Doxxing then return 'Doxxing (Type of Doxxing)' or 'clean' if it is a normal message"},
+        {"role": "user", "content": message}
+        ]
+        response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=conversation,
+        max_tokens=10  # Adjust the max tokens based on the desired response length
+        )
+        # TODO: conversation should be kept track of so GPT-4 has more context and can make better decisions
+        # TODO: either here or somewhere else, if its doxxing or something very severe we might want to remove the post
+        # otherwise we would just send it to the mod channel with the description
+        return [message, response.choices[0].message.content]
 
     
-    def code_format(self, text):
+    def code_format(self, list):
         ''''
         TODO: Once you know how you want to show that a message has been 
         evaluated, insert your code here for formatting the string to be 
         shown in the mod channel. 
         '''
-        return "Evaluated: '" + text+ "'"
+        return "Evaluated: '" + list[0]+ "' as " + list[1]
 
 
 client = ModBot()
