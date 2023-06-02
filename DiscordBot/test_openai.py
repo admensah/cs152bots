@@ -47,10 +47,26 @@ for index, row in tqdm(df.iterrows(), total=df.shape[0]):
     gpt_response = eval_text(text)[1]
     gpt_label = 0 if "clean" in gpt_response else 1
 
-    confusion_mat[label, gpt_label] += 1
+    confusion_mat[label][gpt_label] += 1
 
-    if index >= 10:
+    if index >= 20:
         break
 
 print(confusion_mat)
+true_positives = confusion_mat[1][1]
+true_negatives = confusion_mat[0][0]
+false_positives = confusion_mat[0][1]
+false_negatives = confusion_mat[1][0]
+
+total = true_negatives + true_positives + false_negatives + false_positives
+accuracy = (true_positives + true_negatives) / total
+precision = true_positives / (true_positives + false_positives)
+recall = true_positives / (true_positives + false_negatives)
+f1_score = 2 * (precision * recall) / (precision + recall)
+
+print("Accuracy:", accuracy)
+print("Precision:", precision)
+print("Recall:", recall)
+print("F1-score:", f1_score)
+
     
