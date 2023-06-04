@@ -27,6 +27,8 @@ with open(token_path) as f:
     # If you get an error here, it means your token is formatted incorrectly. Did you put it in quotes?
     tokens = json.load(f)
     discord_token = tokens['discord']
+    openai.organization = tokens['openAIOrganization']
+    openai.api_key = tokens['openAIKey']
 
 
 class Moderator:
@@ -212,6 +214,8 @@ class ModBot(discord.Client):
         return
     
     async def auto_report(self, message, offense):
+        if offense == "clean":
+            return
         self.reports["Bot"] = Report(self, [offense, offense, message])
         priority = self.reports["Bot"].priority()
         if "Bot" in self.filed_reports:
