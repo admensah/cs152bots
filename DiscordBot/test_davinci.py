@@ -31,7 +31,7 @@ def eval_text(messages):
     #max_tokens=10  # Adjust the max tokens based on the desired response length
     #)
     prompts = [
-        f"You are a content moderation system. Classify each input as either Doxxing, Extortion, Threats, Sexual Harassment, Hate Speech, or Bullying. Then assign a severity level to it between 1 and 4, 4 being the most severe. The message you return should be in the format 'Classification (Severity)' unless its Doxxing then return 'Doxxing (Type of Doxxing)' or 'clean' if it is a normal message."
+        f"You are a content moderation system. Classify each input as either Doxxing, Extortion, Threats, Sexual Harassment, Hate Speech, or Bullying. Then assign a severity level to it between 1 and 4, 4 being the most severe. The message you return should be in the format 'Classification (Severity)' unless its Doxxing then return 'Doxxing (Type of Doxxing)' or 'clean' if it is a normal message. Note: just because a message has swear words, does not mean it should be classified as hate speech or anything."
         + "\nMessage: {message}"
         for message in messages]
     response = openai.Completion.create(
