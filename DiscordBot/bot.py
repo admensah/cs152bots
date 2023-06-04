@@ -7,6 +7,7 @@ import logging
 import re
 import requests
 import openai
+from reg import Regex, Regex_state
 from report import Report, State
 import pdb
 import heapq
@@ -261,6 +262,7 @@ class ModBot(discord.Client):
             reply +=  "Use the `peek` command to look at the most urgent report.\n"
             reply += "Use the `count` command to see how many reports are in the review queue.\n"
             reply += "Use the `review` command to review the most urgent report.\n"
+            reply += "Use the `regex` command to "
             await mod_channel.send(reply)
         # If the report is complete or cancelled, remove it from our map
         if self.reports[author_id].report_complete():
@@ -305,6 +307,8 @@ class ModBot(discord.Client):
             await mod_channel.send(f'---\nForwarded message:\n{message.author.name}: "{message.content}"')
             scores = self.eval_text(message.content)
             await mod_channel.send(self.code_format(scores))
+            await self.auto_report(message, scores[1])
+            await self.auto_flag_messages(message, scores[1])
             return 
 
         # Moderator flow
@@ -313,6 +317,7 @@ class ModBot(discord.Client):
                 reply =  "Use the `peek` command to look at the most urgent report.\n"
                 reply += "Use the `count` command to see how many reports are in the review queue.\n"
                 reply += "Use the `review` command to review the most urgent report.\n"
+                reply += "Use the `regex` commend to view and edit the regex matching list\n"
                 await message.channel.send(reply)
                 return
 
@@ -361,6 +366,24 @@ class ModBot(discord.Client):
 
                 self.reports_in_review[report.message.id] = report
                 return
+            author_id = message.author.id
+
+            if message.content == Moderator.REGEX_KEYWORD:
+                self.regex_op[author_id] = Regex(self, self.pattern_list)
+
+            if author_id in self.regex_op:
+                if self.regex_op[author_id].regex_complete():
+                    self.regex_op.pop(author_id)
+                    return
+                response = await self.regex_op[author_id].handle_message(message)
+                await message.channel.send(response)
+    
+    def match_regex(self, message):
+        for key in self.pattern_list:
+            regex = re.compile(key)
+            if regex.search(message) != None:
+                return self.pattern_list[key]
+        return None
 
     
     def eval_text(self, message):
