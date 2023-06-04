@@ -31,6 +31,8 @@ with open(token_path) as f:
     tokens = json.load(f)
     discord_token = tokens['discord']
     mongodb_token = tokens['mongodb']
+    openai.organization = tokens['openai_org']
+    openai.api_key = tokens['openai_api_key']
 
 # Create a new client and connect to the server
 client = MongoClient(mongodb_token)
@@ -391,16 +393,20 @@ class ModBot(discord.Client):
 
         if matched_regex != None:
             return [message, matched_regex]
-
-        conversation = [
-        {"role": "system", "content": "You are a content moderation system. Classify each input as either Doxxing, Extortion, Threats, Sexual Harassment, Hate Speech, Bullying, or . Then assign a severity level to it between 1 and 4, 4 being the most severe. The message you return should be in the format 'Type (Severity)' unless its Doxxing then return 'Doxxing (Type of Doxxing)' or 'clean' if it is a normal message"},
-        {"role": "user", "content": message}
-        ]
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=conversation,
-            max_tokens=10  # Adjust the max tokens based on the desired response length
-        )
+        try:
+            conversation = [
+            {"role": "system", "content": "You are a content moderation system. Classify each input as either Doxxing, Extortion, Threats, Sexual Harassment, Hate Speech, Bullying, or . Then assign a severity level to it between 1 and 4, 4 being the most severe. The message you return should be in the format 'Type (Severity)' unless its Doxxing then return 'Doxxing (Type of Doxxing)' or 'clean' if it is a normal message"},
+            {"role": "user", "content": message}
+            ]
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=conversation,
+                max_tokens=10  # Adjust the max tokens based on the desired response length
+            )
+        except Exception as e: 
+            # TODO: try perspective in another try execpt block and if that doesn't work 
+            # then return message
+            return message
         return [message, response.choices[0].message.content]
 
     
