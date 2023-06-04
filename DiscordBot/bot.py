@@ -387,10 +387,6 @@ class ModBot(discord.Client):
 
     
     def eval_text(self, message):
-        ''''
-        TODO: Once you know how you want to evaluate messages in your channel, 
-        insert your code here! This will primarily be used in Milestone 3. 
-        '''
         matched_regex = self.match_regex(message)
 
         if matched_regex != None:
@@ -405,18 +401,10 @@ class ModBot(discord.Client):
             messages=conversation,
             max_tokens=10  # Adjust the max tokens based on the desired response length
         )
-        # TODO: conversation should be kept track of so GPT-4 has more context and can make better decisions
-        # TODO: either here or somewhere else, if its doxxing or something very severe we might want to remove the post
-        # otherwise we would just send it to the mod channel with the description
         return [message, response.choices[0].message.content]
 
     
     def code_format(self, list):
-        ''''
-        TODO: Once you know how you want to show that a message has been 
-        evaluated, insert your code here for formatting the string to be 
-        shown in the mod channel. 
-        '''
         return "Evaluated: '" + list[0]+ "' as " + list[1]
 
 
