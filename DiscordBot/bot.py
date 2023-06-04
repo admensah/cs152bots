@@ -14,19 +14,6 @@ import heapq
 
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
-uri = ""
-# Create a new client and connect to the server
-client = MongoClient(uri)
-db = client.discord_data
-reports_db = db.reports_data
-user_db = db.user_data
-
-# Send a ping to confirm a successful connection
-try:
-    client.admin.command('ping')
-    print("Pinged your deployment. You successfully connected to MongoDB!")
-except Exception as e:
-    print(e)
 
 # Set up logging to the console
 logger = logging.getLogger('discord')
@@ -43,7 +30,20 @@ with open(token_path) as f:
     # If you get an error here, it means your token is formatted incorrectly. Did you put it in quotes?
     tokens = json.load(f)
     discord_token = tokens['discord']
+    mongodb_token = tokens['mongodb']
 
+# Create a new client and connect to the server
+client = MongoClient(mongodb_token)
+db = client.discord_data
+reports_db = db.reports_data
+user_db = db.user_data
+
+# Send a ping to confirm a successful connection
+try:
+    client.admin.command('ping')
+    print("Pinged your deployment. You successfully connected to MongoDB!")
+except Exception as e:
+    print(e)
 
 class Moderator:
     HELP_KEYWORD = "help"
