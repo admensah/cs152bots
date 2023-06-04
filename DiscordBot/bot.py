@@ -31,6 +31,7 @@ with open(token_path) as f:
     tokens = json.load(f)
     discord_token = tokens['discord']
     mongodb_token = tokens['mongodb']
+    perspective_api_key = tokens['perspective']
     openai.organization = tokens['openai_org']
     openai.api_key = tokens['openai_api_key']
 
@@ -275,9 +276,14 @@ class ModBot(discord.Client):
             await message.delete()
         return
     
-    async def auto_report(self, message, offense):
+    async def auto_report(self, message, offense, type):
         if offense == "clean":
             return
+        if type == 'Google Perspective API':
+            toxicity_score_match = float(re.search(r"Toxicity Score: (\d+\.\d+)", offense).group(1))
+            severe_toxicity_score_match = float(re.search(r"Severe Toxicity Score: (\d+\.\d+)", offense).group(1))
+            if toxicity_score_match < 0.8 and severe_toxicity_score_match < 0.4:
+                return
         self.reports["Bot"] = Report(self, [offense, offense, message])
         priority = self.reports["Bot"].priority()
         if "Bot" in self.filed_reports:
@@ -309,7 +315,7 @@ class ModBot(discord.Client):
             await mod_channel.send(f'---\nForwarded message:\n{message.author.name}: "{message.content}"')
             scores = self.eval_text(message.content)
             await mod_channel.send(self.code_format(scores))
-            await self.auto_report(message, scores[1])
+            await self.auto_report(message, scores[1], scores[2])
             await self.auto_flag_messages(message, scores[1])
             return 
 
@@ -392,10 +398,10 @@ class ModBot(discord.Client):
         matched_regex = self.match_regex(message)
 
         if matched_regex != None:
-            return [message, matched_regex]
+            return [message, matched_regex, 'regex matching']
         try:
             conversation = [
-            {"role": "system", "content": "You are a content moderation system. Classify each input as either Doxxing, Extortion, Threats, Sexual Harassment, Hate Speech, Bullying, or . Then assign a severity level to it between 1 and 4, 4 being the most severe. The message you return should be in the format 'Type (Severity)' unless its Doxxing then return 'Doxxing (Type of Doxxing)' or 'clean' if it is a normal message"},
+            {"role": "system", "content": "You are a content moderation system. Classify each input as either Doxxing, Extortion, Threats, Sexual Harassment, Hate Speech, Bullying, or . Then assign a severity level to it between 1 and 4, 4 being the most severe. The message you return should be in the format 'Type (Severity)' unless its Doxxing then return 'Doxxing (Type of Doxxing)' or 'clean' if it is a normal message. Note: just because a message has swear words, doesn't necessarily mean it should be flagged. If a message is clean, it should only say 'clean'"},
             {"role": "user", "content": message}
             ]
             response = openai.ChatCompletion.create(
@@ -404,14 +410,31 @@ class ModBot(discord.Client):
                 max_tokens=10  # Adjust the max tokens based on the desired response length
             )
         except Exception as e: 
-            # TODO: try perspective in another try execpt block and if that doesn't work 
-            # then return message
-            return message
-        return [message, response.choices[0].message.content]
+            try:
+                url = "https://commentanalyzer.googleapis.com/v1alpha1/comments:analyze?key=" + perspective_api_key
+                data = {
+                    "comment": {"text": message},
+                    "requestedAttributes": {"TOXICITY": {}, "SEVERE_TOXICITY": {}},
+                }
+                headers = {"Content-Type": "application/json"}
+                response = requests.post(url, data=json.dumps(data), headers=headers)
+                response_data = response.json()
+
+                attribute_scores = response_data.get("attributeScores")
+                if attribute_scores:
+                    toxicity_score = attribute_scores.get("TOXICITY", {}).get("summaryScore", {}).get("value", 0.0)
+                    severe_toxicity_score = attribute_scores.get("SEVERE_TOXICITY", {}).get("summaryScore", {}).get("value", 0.0)
+                else:
+                    toxicity_score = 0.0
+                    severe_toxicity_score = 0.0
+                return [message, "Toxicity Score: " + str(toxicity_score) + "; Severe Toxicity Score: " + str(severe_toxicity_score), 'Google Perspective API']
+            except Exception as e:
+                return [message, 'clean', '']
+        return [message, response.choices[0].message.content, 'OpenAI']
 
     
     def code_format(self, list):
-        return "Evaluated: '" + list[0]+ "' as " + list[1]
+        return "Evaluated: '" + list[0]+ "' using " + list[2] + "\n" + list[1]
 
 
 client = ModBot()
