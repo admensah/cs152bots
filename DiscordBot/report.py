@@ -47,7 +47,22 @@ class Report:
         "❌": False
     }
 
-    def __init__(self, client):
+    def __init__(self, client, args=None):
+        if args != None:
+            self.state = State.REPORT_FILED
+            self.client = client
+            self.reason = args[0]
+            self.sub_reason = args[1]
+            self.additional_messages = False
+            self.additional_context = True
+            self.choose_block = False
+            self.reaction_mode = False
+            self.flagged_messages = [args[2]]
+            self.user_context = "Bot detected"
+            self.severity = None
+            self.reporter = "Bot"
+            return
+
         self.state = State.REPORT_START
         self.client = client
         self.message = None # keeps track of last sent message (useful for handling reactions)
@@ -61,7 +76,6 @@ class Report:
         self.user_context = None # user inputted context
         self.severity = None
         self.reporter = None
-    
     async def handle_message(self, message, user_db):
         '''
         This function makes up the meat of the user-side reporting flow. It defines how we transition between states and what 
@@ -271,6 +285,7 @@ class Report:
                 reply += "Use the `count` command to see how many reports are in the review queue.\n"
                 reply += "Use the `review` command to review the most urgent report.\n"
                 await self.message.channel.send(reply)
+                
             if self.severity == 2:
                 # Warn offending user
                 offendingUsers = []

@@ -6,6 +6,8 @@ import json
 import logging
 import re
 import requests
+import openai
+from reg import Regex, Regex_state
 from report import Report, State
 import pdb
 import heapq
@@ -48,6 +50,7 @@ class Moderator:
     PEEK_KEYWORD = "peek"
     REVIEW_KEYWORD = "review"
     COUNT_KEYWORD = "count"
+    REGEX_KEYWORD = "regex"
     SEVERITY_LEVELS = 4
 
 class ModBot(discord.Client):
@@ -66,6 +69,27 @@ class ModBot(discord.Client):
         self.reports_to_review = [] # Priority queue of (user IDs, index)  state of their filed report
         self.report_counter = 0 # Count of filed reports
         self.reports_in_review = {} # Map from bot_message id to report
+        
+        self.false_reporters = [] # List of reporters 
+        self.pattern_list = {
+            r'\b(?:\d{1,3}\.){3}\d{1,3}\b': "Doxxing", 
+            r'\b\d{3}[-.]?\d{3}[-.]?\d{4}\b': "Doxxing",
+            r'\b(?:kill|hurt|threat|attack|destroy)\b': "Imminent Danger",
+            r'hate': "Hate speech",
+            }
+        self.regex_op = {}
+        self.severity = {
+            "Doxxing": 3,
+            "Imminent Danger": 4,
+            "Extortion": 3,
+            "Cyberstalking": 2,
+            "Threats": 2, 
+            "Swatting": 3,
+            "Profanity": 2,
+            "Hate speech": 2,
+            "Spam": 2,
+            "Offesnive Content": 2,
+        }
 
     async def on_ready(self):
         print(f'{self.user.name} has connected to Discord! It is these guilds:')
@@ -238,11 +262,42 @@ class ModBot(discord.Client):
             reply +=  "Use the `peek` command to look at the most urgent report.\n"
             reply += "Use the `count` command to see how many reports are in the review queue.\n"
             reply += "Use the `review` command to review the most urgent report.\n"
+            reply += "Use the `regex` command to "
             await mod_channel.send(reply)
         # If the report is complete or cancelled, remove it from our map
         if self.reports[author_id].report_complete():
             self.reports.pop(author_id)
 
+    async def auto_flag_messages(self, message, offense):
+        if offense in self.severity and self.severity[offense] >= 10:
+            await message.delete()
+        return
+    
+    async def auto_report(self, message, offense):
+        if offense == "clean":
+            return
+        self.reports["Bot"] = Report(self, [offense, offense, message])
+        priority = self.reports["Bot"].priority()
+        if "Bot" in self.filed_reports:
+            self.filed_reports["Bot"].append(self.reports["Bot"])
+        else:
+            self.filed_reports["Bot"] = [self.reports["Bot"]]
+        index = len(self.filed_reports["Bot"]) - 1
+        heapq.heappush(self.reports_to_review, (priority, self.report_counter, ("Bot", index)))
+        self.report_counter += 1
+        for guild in self.guilds:
+            for channel in guild.text_channels:
+                if channel.name == f'group-{self.group_num}-mod':
+                    mod_channel = channel
+        report_summary = self.reports["Bot"].summary()
+        reply = "---\n"
+        reply += f"New report added to the queue:\n{report_summary}"
+        reply +=  "Use the `peek` command to look at the most urgent report.\n"
+        reply += "Use the `count` command to see how many reports are in the review queue.\n"
+        reply += "Use the `review` command to review the most urgent report.\n"
+        await mod_channel.send(reply)
+        return 
+    
 
     async def handle_channel_message(self, message):
         # Only handle messages sent in the "group-#" or "group-#-mod" channel
@@ -252,6 +307,8 @@ class ModBot(discord.Client):
             await mod_channel.send(f'---\nForwarded message:\n{message.author.name}: "{message.content}"')
             scores = self.eval_text(message.content)
             await mod_channel.send(self.code_format(scores))
+            await self.auto_report(message, scores[1])
+            await self.auto_flag_messages(message, scores[1])
             return 
 
         # Moderator flow
@@ -260,6 +317,7 @@ class ModBot(discord.Client):
                 reply =  "Use the `peek` command to look at the most urgent report.\n"
                 reply += "Use the `count` command to see how many reports are in the review queue.\n"
                 reply += "Use the `review` command to review the most urgent report.\n"
+                reply += "Use the `regex` commend to view and edit the regex matching list\n"
                 await message.channel.send(reply)
                 return
 
@@ -308,6 +366,24 @@ class ModBot(discord.Client):
 
                 self.reports_in_review[report.message.id] = report
                 return
+            author_id = message.author.id
+
+            if message.content == Moderator.REGEX_KEYWORD:
+                self.regex_op[author_id] = Regex(self, self.pattern_list)
+
+            if author_id in self.regex_op:
+                if self.regex_op[author_id].regex_complete():
+                    self.regex_op.pop(author_id)
+                    return
+                response = await self.regex_op[author_id].handle_message(message)
+                await message.channel.send(response)
+    
+    def match_regex(self, message):
+        for key in self.pattern_list:
+            regex = re.compile(key)
+            if regex.search(message) != None:
+                return self.pattern_list[key]
+        return None
 
     
     def eval_text(self, message):
@@ -315,16 +391,33 @@ class ModBot(discord.Client):
         TODO: Once you know how you want to evaluate messages in your channel, 
         insert your code here! This will primarily be used in Milestone 3. 
         '''
-        return message
+        matched_regex = self.match_regex(message)
+
+        if matched_regex != None:
+            return [message, matched_regex]
+
+        conversation = [
+        {"role": "system", "content": "You are a content moderation system. Classify each input as either Doxxing, Extortion, Threats, Sexual Harassment, Hate Speech, Bullying, or . Then assign a severity level to it between 1 and 4, 4 being the most severe. The message you return should be in the format 'Type (Severity)' unless its Doxxing then return 'Doxxing (Type of Doxxing)' or 'clean' if it is a normal message"},
+        {"role": "user", "content": message}
+        ]
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=conversation,
+            max_tokens=10  # Adjust the max tokens based on the desired response length
+        )
+        # TODO: conversation should be kept track of so GPT-4 has more context and can make better decisions
+        # TODO: either here or somewhere else, if its doxxing or something very severe we might want to remove the post
+        # otherwise we would just send it to the mod channel with the description
+        return [message, response.choices[0].message.content]
 
     
-    def code_format(self, text):
+    def code_format(self, list):
         ''''
         TODO: Once you know how you want to show that a message has been 
         evaluated, insert your code here for formatting the string to be 
         shown in the mod channel. 
         '''
-        return "Evaluated: '" + text+ "'"
+        return "Evaluated: '" + list[0]+ "' as " + list[1]
 
 
 client = ModBot()

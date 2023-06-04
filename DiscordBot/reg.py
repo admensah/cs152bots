@@ -11,6 +11,7 @@ class Regex_state(Enum):
     REGEX_DELETED = auto()
     REGEX_CANCELLED = auto()
     REGEX_DONE = auto()
+    
 
 class Regex:
     ADD_REGEX_KEYWORD = "add"
