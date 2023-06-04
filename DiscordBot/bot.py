@@ -6,11 +6,26 @@ import json
 import logging
 import re
 import requests
+import openai
 from report import Report, State
-from reg import Regex, Regex_state
 import pdb
 import heapq
-import openai
+
+from pymongo.mongo_client import MongoClient
+from pymongo.server_api import ServerApi
+uri = ""
+# Create a new client and connect to the server
+client = MongoClient(uri)
+db = client.discord_data
+reports_db = db.reports_data
+user_db = db.user_data
+
+# Send a ping to confirm a successful connection
+try:
+    client.admin.command('ping')
+    print("Pinged your deployment. You successfully connected to MongoDB!")
+except Exception as e:
+    print(e)
 
 # Set up logging to the console
 logger = logging.getLogger('discord')
@@ -27,8 +42,6 @@ with open(token_path) as f:
     # If you get an error here, it means your token is formatted incorrectly. Did you put it in quotes?
     tokens = json.load(f)
     discord_token = tokens['discord']
-    openai.organization = tokens['openAIOrganization']
-    openai.api_key = tokens['openAIKey']
 
 
 class Moderator:
@@ -55,6 +68,7 @@ class ModBot(discord.Client):
         self.reports_to_review = [] # Priority queue of (user IDs, index)  state of their filed report
         self.report_counter = 0 # Count of filed reports
         self.reports_in_review = {} # Map from bot_message id to report
+        
         self.false_reporters = [] # List of reporters 
         self.pattern_list = {
             r'\b(?:\d{1,3}\.){3}\d{1,3}\b': "Doxxing", 
@@ -122,13 +136,13 @@ class ModBot(discord.Client):
         if reaction.message.guild: # Moderator flow
             if reaction.message.id in self.reports_in_review:
                 report = self.reports_in_review[reaction.message.id]
-                await report.handle_reaction(reaction, self.false_reporters)
+                await report.handle_reaction(reaction, user_db)
 
 
         elif user.id in self.reports: # User flow
             report = self.reports[user.id]
             if reaction.message == report.message:
-                await self.reports[user.id].handle_reaction(reaction, self.false_reporters)
+                await self.reports[user.id].handle_reaction(reaction, user_db)
                 
                 bot_id = self.user.id
                 fake_message = reaction.message
@@ -158,7 +172,7 @@ class ModBot(discord.Client):
             self.reports[author_id] = Report(self)
 
         # Let the report class handle this message; forward all the messages it returns to uss
-        responses = await self.reports[author_id].handle_message(message)
+        responses = await self.reports[author_id].handle_message(message, user_db)
         for r in responses:
             bot_message = await message.channel.send(r)
         
@@ -186,6 +200,50 @@ class ModBot(discord.Client):
             else:
                 self.filed_reports[author_id] = [self.reports[author_id]]
             
+            reportees = []
+            for message in self.reports[author_id].flagged_messages:
+                reportees.append(message.author)
+
+            reportees_dict = [{'id': member.id, 'name': member.name, 'discriminator': member.discriminator} for member in reportees]
+            report_summary = self.reports[author_id].summary()
+
+            report_id = reports_db.insert_one(
+                {
+                    "author": author_id,
+                    "reportees": reportees_dict,
+                    "report_summary": report_summary,
+                }
+            ).inserted_id
+
+            # Update the user document for the author
+            author = await client.fetch_user(author_id)
+            author_name = author.name
+            user_db.update_one(
+                {"user_id": author_id},
+                {
+                    "$set": {"user_name": author_name},
+                    "$push": {"reports_submitted": report_id},
+                    "$inc": {"num_reports_submitted": 1}
+                },
+                upsert=True  
+            )
+
+            # Update the user documents for the reportees
+            for reportee in reportees_dict:
+                user = await client.fetch_user(reportee['id'])
+                user_name = user.name
+                user_db.update_one(
+                    {"user_id": reportee['id']},
+                    {
+                        "$set": {"user_name": user_name},
+                        "$push": {"reports_against": report_id},
+                        "$inc": {"num_reports_against": 1}
+                    },
+                    upsert=True
+                )
+
+
+
             # Add to priority queue
             priority = self.reports[author_id].priority()
             index = len(self.filed_reports[author_id]) - 1
@@ -238,6 +296,7 @@ class ModBot(discord.Client):
         await mod_channel.send(reply)
         return 
     
+
     async def handle_channel_message(self, message):
         # Only handle messages sent in the "group-#" or "group-#-mod" channel
         if message.channel.name == f'group-{self.group_num}':
@@ -246,8 +305,6 @@ class ModBot(discord.Client):
             await mod_channel.send(f'---\nForwarded message:\n{message.author.name}: "{message.content}"')
             scores = self.eval_text(message.content)
             await mod_channel.send(self.code_format(scores))
-            await self.auto_report(message, scores[1])
-            await self.auto_flag_messages(message, scores[1])
             return 
 
         # Moderator flow
@@ -256,7 +313,6 @@ class ModBot(discord.Client):
                 reply =  "Use the `peek` command to look at the most urgent report.\n"
                 reply += "Use the `count` command to see how many reports are in the review queue.\n"
                 reply += "Use the `review` command to review the most urgent report.\n"
-                reply += "Use the `regex` commend to view and edit the regex matching list\n"
                 await message.channel.send(reply)
                 return
 
@@ -293,7 +349,7 @@ class ModBot(discord.Client):
 
                 report.state = State.AWAITING_REVIEW
 
-                responses = await report.handle_message(message)
+                responses = await report.handle_message(message, user_db)
                 for r in responses:
                     bot_message = await message.channel.send(r)
                 
@@ -306,25 +362,6 @@ class ModBot(discord.Client):
                 self.reports_in_review[report.message.id] = report
                 return
 
-            author_id = message.author.id
-
-            if message.content == Moderator.REGEX_KEYWORD:
-                self.regex_op[author_id] = Regex(self, self.pattern_list)
-            
-            if author_id in self.regex_op:
-                if self.regex_op[author_id].regex_complete():
-                    self.regex_op.pop(author_id)
-                    return
-                response = await self.regex_op[author_id].handle_message(message)
-                await message.channel.send(response)
-
-
-    def match_regex(self, message):
-        for key in self.pattern_list:
-            regex = re.compile(key)
-            if regex.search(message) != None:
-                return self.pattern_list[key]
-        return None
     
     def eval_text(self, message):
         ''''

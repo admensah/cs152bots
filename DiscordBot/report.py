@@ -47,22 +47,7 @@ class Report:
         "❌": False
     }
 
-    def __init__(self, client, args=None):
-        if args != None:
-            self.state = State.REPORT_FILED
-            self.client = client
-            self.reason = args[0]
-            self.sub_reason = args[1]
-            self.additional_messages = False
-            self.additional_context = True
-            self.choose_block = False
-            self.reaction_mode = False
-            self.flagged_messages = [args[2]]
-            self.user_context = "Bot detected"
-            self.severity = None
-            self.reporter = "Bot"
-            return
-        
+    def __init__(self, client):
         self.state = State.REPORT_START
         self.client = client
         self.message = None # keeps track of last sent message (useful for handling reactions)
@@ -76,8 +61,8 @@ class Report:
         self.user_context = None # user inputted context
         self.severity = None
         self.reporter = None
-
-    async def handle_message(self, message):
+    
+    async def handle_message(self, message, user_db):
         '''
         This function makes up the meat of the user-side reporting flow. It defines how we transition between states and what 
         prompts to offer at each of those states. You're welcome to change anything you want; this skeleton is just here to
@@ -196,6 +181,29 @@ class Report:
                 if self.choose_block:
                     authors = self.get_authors()
                     reply += f"  The offending authors of the flagged messages have been blocked:\n{authors}"
+                    # Create a set to store unique user IDs
+                    unique_user_ids = set()
+
+                    # Update blocking and blocked users counts
+                    for message in self.flagged_messages:
+                        user_id = message.author.id
+                        if user_id not in unique_user_ids:
+                            unique_user_ids.add(user_id)
+                            user_db.update_one(
+                                {"user_id": user_id},
+                                {"$inc": {"num_users_blocking": 1}},
+                                upsert=True
+                            )
+
+                    # Update blocked users count for the reporter
+                    reporter_id = self.reporter.id
+                    if reporter_id not in unique_user_ids:
+                        unique_user_ids.add(reporter_id)
+                        user_db.update_one(
+                            {"user_id": reporter_id},
+                            {"$inc": {"num_blocked_users": 1}},
+                            upsert=True
+                        )
             return [reply]
 
         if self.state == State.AWAITING_REVIEW:
@@ -207,7 +215,7 @@ class Report:
 
 
 
-    async def handle_reaction(self, reaction, false_reporters):
+    async def handle_reaction(self, reaction, user_db):
         self.reaction_mode = False
         if self.state == State.AWAITING_REASON:
             self.reason = self.REASONS[self.NUM_TO_IND[reaction.emoji] - 1] 
@@ -243,15 +251,27 @@ class Report:
                     response = await self.client.wait_for('message', check=check, timeout=60.0) 
 
                 if response.content in ['yes', 'Yes']:
-                    false_reporters.append(self.reporter)
-                    if false_reporters.count(self.reporter) > 2:
+                    # Update the false_reports count for the reporter
+                    user_db.update_one(
+                        {"user_id": self.reporter.id},
+                        {"$inc": {"false_reports": 1}},
+                        upsert=True
+                    )
+
+                    # Retrieve the updated value
+                    user_document = user_db.find_one({"user_id": self.reporter.id})
+                    false_reports = user_document.get('false_reports', 0)
+
+                    if false_reports > 2:
                         await self.reporter.send("Your account is kicked for 3 or more repeated inaccurate reports.")
                     else:
-                        await self.reporter.send(f"Ensure future reports are accurate to avoid further action against your account. This is warning {false_reporters.count(self.reporter)} of 2.")
+                        await self.reporter.send(f"Ensure future reports are accurate to avoid further action against your account. This is warning {false_reports} of 2.")
+                    
                 reply += "Use the `peek` command to look at the most urgent report.\n"
                 reply += "Use the `count` command to see how many reports are in the review queue.\n"
                 reply += "Use the `review` command to review the most urgent report.\n"
                 await self.message.channel.send(reply)
+                
             if self.severity == 2:
                 # Warn offending user
                 offendingUsers = []
@@ -263,6 +283,11 @@ class Report:
                         offendingUserNames.append(offendingUser.name)
                 for user in offendingUsers:
                     await user.send("You have been reported for violating the server rules. Please be respectful and follow the guidelines.")
+                    user_db.update_one(
+                        {"user_id": user.id},
+                        {"$inc": {"num_warnings": 1}},
+                        upsert=True
+                    )
                 reply = "The following users have been warned: " + " ,".join(offendingUserNames) + "\n\n"
                 reply +=  "Use the `peek` command to look at the most urgent report.\n"
                 reply += "Use the `count` command to see how many reports are in the review queue.\n"
@@ -313,7 +338,6 @@ class Report:
                 reply += "Use the `review` command to review the most urgent report.\n"
                 await self.message.channel.send(reply)
         return
-    
      
     def get_authors(self):
         authors = [msg.author.name for msg in self.flagged_messages]
@@ -345,4 +369,3 @@ class Report:
             summary += f"```{message.author.name}: {message.content}```"
         return summary
     
-
