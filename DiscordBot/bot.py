@@ -277,7 +277,7 @@ class ModBot(discord.Client):
         return
     
     async def auto_report(self, message, offense, type):
-        if offense == "clean":
+        if 'clean' in offense:
             return
         if type == 'Google Perspective API':
             toxicity_score_match = float(re.search(r"Toxicity Score: (\d+\.\d+)", offense).group(1))
@@ -401,7 +401,7 @@ class ModBot(discord.Client):
             return [message, matched_regex, 'regex matching']
         try:
             conversation = [
-            {"role": "system", "content": "You are a content moderation system. Classify each input as either Doxxing, Extortion, Threats, Sexual Harassment, Hate Speech, Bullying, or . Then assign a severity level to it between 1 and 4, 4 being the most severe. The message you return should be in the format 'Type (Severity)' unless its Doxxing then return 'Doxxing (Type of Doxxing)' or 'clean' if it is a normal message. Note: just because a message has swear words, doesn't necessarily mean it should be flagged. If a message is clean, it should only say 'clean'"},
+            {"role": "system", "content": "You are a content moderation system. Classify each input as either Doxxing, Extortion, Threats, Sexual Harassment, Hate Speech, or Bullying. Then assign a severity level to it between 1 and 4, 4 being the most severe. The message you return should be in the format 'Type (Severity)' unless its Doxxing then return 'Doxxing (Type of Doxxing)' or 'clean' if it is a normal message that should not be flagged. Note: just becauase a swear word is used, does not mean that the message should be flagged. Try to analyze how the words are being used, whether they are directed toward someone, etc."},
             {"role": "user", "content": message}
             ]
             response = openai.ChatCompletion.create(
