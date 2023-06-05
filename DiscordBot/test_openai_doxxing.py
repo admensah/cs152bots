@@ -35,10 +35,10 @@ def eval_text(message):
     # otherwise we would just send it to the mod channel with the description
     return [message, response.choices[0].message.content]
 
-dataset_path = "../datasets/youtube_parsed_dataset.csv"
+dataset_path = "../datasets/doxxing_dataset.csv"
 with open(dataset_path) as f:
     df = pd.read_csv(f)
-df = df[["Text", "oh_label"]]
+df = df[["text", "doxxing"]]
 
 confusion_mat = [[0, 0], [0, 0]]
 for index, row in tqdm(df.iterrows(), total=df.shape[0]):
@@ -48,9 +48,6 @@ for index, row in tqdm(df.iterrows(), total=df.shape[0]):
     gpt_label = 0 if "clean" in gpt_response else 1
 
     confusion_mat[label][gpt_label] += 1
-
-    if index >= 200:
-        break
 
 print(confusion_mat)
 true_positives = confusion_mat[1][1]

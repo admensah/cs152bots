@@ -1,0 +1,48 @@
+index,text,doxxing
+0,John Doe's home address is 123 Main Street.,1
+1,Sarah Smith's phone number is 555-1234.,1
+2,Here is Jane Johnson's social security number: 123-45-6789.,1
+3,Michael Brown lives in the apartment complex on Maple Avenue.,1
+4,The city council is considering a new bike-sharing program.,0
+5,I saw John Doe at the coffee shop on 5th Avenue yesterday.,0
+6,The email address of Alex Thompson is alex@example.com.,1
+7,There's a local politician who frequently visits the park near my house.,0
+8,I heard that someone from our town won the national chess championship.,0
+9,A popular blogger is rumored to be dating a famous musician.,0
+10,Here is the IP address of Mark Anderson: 192.168.0.1.,1
+11,Mary Johnson's driver's license number is DL1234567890.,1
+12,"David Smith's date of birth is January 1, 1990.",1
+13,"Jane Doe's workplace is ABC Company, located at 456 Elm Street.",1
+14,The company's headquarters is located at 123 Business Street.,0
+15,The bookstore's website is www.bookstore-example.com.,0
+16,Please send your resume to careers@example-company.com for job opportunities.,0
+17,You can reach me at my personal email address: jane@example.com.,0
+18,"I saw Jane Doe at a local event, and they mentioned working at a specific company. Based on that, I did some online research and found their LinkedIn profile, which reveals their full name, job title, and other professional details.",1
+19,"I updated my social media profile with my hometown: Los Angeles, CA. Proud to represent my city!",0
+20,"Heeyyy guyyys! Ch3ck 0ut th!s l00s3r, n4m3's J0hn D03, h3 liv3s @t 123 M41n St, Smallt0wn, USA. L3t's g1ve h1m 4 v!s1t...",1
+21,"""Th!s is J0hn D03's 📧 : johndoe@example.com""",1
+22,"F1nd @my_girl at 789 Str33t, B1gCity",1
+23,@username's r34l ph0ne #: 123-456-7890,1
+24,Wanna s33 where @_privUser stays? Its 567 Park Ave,1
+25,Th!s is J0hn D03's public 📧 for business inquiries: johndoe@business.com,0
+26,"Let's meet up at 789 Str33t, B1gCity for the concert!",0
+27,Contact our customer service at this ph0ne #: 123-456-7890,0
+28,Our new store location is at 567 Park Ave,1
+29,Just had a fantastic meeting with Mr. ⭐️ at 123 🌴 Street. Can't wait to show you all what we've planned!,0
+30,"💼📈 Our office address has changed to 456 Tech Parkway, Suite 101. Feel free to stop by during business hours!",0
+31,"The new 🍎 store is opening at 789 Market Street, HighTech City. Can't wait to see you all there!",0
+32,Did you know that Lisa Davis goes to ABC University? I managed to find her class schedule. Let's show up uninvited during her lectures!,1
+33,"Attention everyone, I have Bob Wilson's phone number: 555-222-1234. Feel free to give him a taste of our community's opinions!",1
+34,You can reach out to our customer service 📞 at 111-222-3333 for any product-related inquiries!,0
+35,Do you know this guy 🤔? He lives at 🏠123🌴. Say hi to him from me 🤣,1
+36,"Hey, does anyone remember Jane Doe? 📞 her on 111-22✌️-3333 and tell her hi!",1
+37,"👀 for this dude. He's always at 📍Mango Street, 🗽. Tell him to pay his debts.""",1
+38,"Dö yöu knöw this guy? 🤔 He lives at 123 Maple Strəət, Toronto 🇨🇦 Say hi 🖐️ for me 😂",1
+39,"Hey, døes anyøne remember Jane Dое? 📞 her at 111-22-3333 and say hi!",1
+40,"Looking for this guy. He's always at Mångo Strēēt, New York. Tell him to pay his debts 🏦",1
+41,"I live in California - but the state, not the city, so don't try to find me in Ohio 😆",0
+42,"Just moved into my new home in the city 🏢, no more country life for me 🚜",0
+43,Just got a job at a tech company! Guess I'm a Silicon Valley stereotype now 🤓.,0
+44,Mike Taylor's date of birth is 01/15/1990. Let's plan a surprise party for him!,1
+45,"La dirección personal de Ricardo es Calle Principal 123, Ciudad ABC, España. Deberías tener cuidado con la información que compartes en línea.",1
+46,"ℍ𝕖𝕪 𝕖𝕧𝕖𝕣𝕪𝕠𝕟𝕖, 𝕀 𝕗𝕠𝕦𝕟𝕕 𝕁𝕠𝕙𝕟 𝔻𝕠𝕖'𝕤 𝕒𝕕𝕕𝕣𝕖𝕤𝕤. 𝕙𝕖 𝕝𝕚𝕧𝕖𝕤 𝕒𝕥 123 𝕄𝕒𝕚𝕟 𝕊𝕥𝕣𝕖𝕖𝕥, ℂ𝕚𝕥𝕪𝕧𝕚𝕝𝕝𝕖.",1
