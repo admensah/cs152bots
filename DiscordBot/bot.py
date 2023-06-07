@@ -282,7 +282,16 @@ class ModBot(discord.Client):
         if type == 'Google Perspective API':
             toxicity_score_match = float(re.search(r"Toxicity Score: (\d+\.\d+)", offense).group(1))
             severe_toxicity_score_match = float(re.search(r"Severe Toxicity Score: (\d+\.\d+)", offense).group(1))
-            if toxicity_score_match < 0.8 and severe_toxicity_score_match < 0.4:
+
+            user_document = user_db.find_one({"user_id": message.author.id})
+            num_users_blocking = user_document.get('num_users_blocking', 0)
+            num_warnings = user_document.get('num_warnings', 0)
+            reports_against = len(user_document.get('reports_against', []))
+
+            toxicity_adjust = num_users_blocking/100 + num_warnings/100 + reports_against/100
+            toxicity_score_match += toxicity_score_match
+            
+            if toxicity_score_match < 0.85 and severe_toxicity_score_match < 0.45:
                 return
         self.reports["Bot"] = Report(self, [offense, offense, message])
         priority = self.reports["Bot"].priority()
