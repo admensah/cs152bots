@@ -1,4 +1,4 @@
-#Preventing Swatting on Discord Through Automatic Detection and Manual Reviews of Harassment through Doxxing
+# Preventing Swatting on Discord Through Automatic Detection and Manual Reviews of Harassment through Doxxing
 
 ## Discord Bot Code
 
